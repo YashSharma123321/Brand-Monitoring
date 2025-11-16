@@ -1,30 +1,22 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import User from "../models/User.js"; // <-- make sure this points to your User model
+import User from "../models/User.js";
 
 // Signup
 export const signup = async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
-    // Check if user exists in DB
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
+    if (existingUser) return res.status(400).json({ message: "User already exists" });
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await User.create({ name, email, password: hashedPassword });
 
-    // Save user to MongoDB
-    const newUser = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-    });
+    const token = jwt.sign({ id: newUser._id, email: newUser.email }, process.env.JWT_SECRET, { expiresIn: "1d" });
 
     res.status(201).json({
       message: "User created successfully",
+      token,
       user: { id: newUser._id, name: newUser.name, email: newUser.email },
     });
   } catch (err) {
@@ -36,27 +28,37 @@ export const signup = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Fetch user from MongoDB
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "User not found" });
 
-    // Compare hashed password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-    // Generate JWT
-    const token = jwt.sign(
-      { id: user._id, email: user.email },
-      process.env.JWT_SECRET, // <-- use secret from .env
-      { expiresIn: "1d" }
-    );
+    const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "1d" });
 
-    res.json({
-      message: "Login successful",
-      token,
-      user: { id: user._id, name: user.name, email: user.email },
-    });
+    res.json({ message: "Login successful", token, user: { id: user._id, name: user.name, email: user.email } });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get logged-in user
+export const getMe = async (req, res) => {
+  res.json({ user: req.user });
+};
+
+// Update user
+export const updateUser = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (password) user.password = await bcrypt.hash(password, 10);
+
+    await user.save();
+    res.json({ message: "Profile updated", user: { id: user._id, name: user.name, email: user.email } });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

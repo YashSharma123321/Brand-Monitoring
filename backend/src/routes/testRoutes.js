@@ -1,9 +1,4 @@
 import express from "express";
 const router = express.Router();
-
-// Test Route
-router.get("/ping", (req, res) => {
-  res.json({ message: "Pong! Backend is working." });
-});
-
+router.get("/", (req, res) => res.send("Test route working"));
 export default router;

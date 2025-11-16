@@ -1,67 +1,46 @@
-import { fetchRedditMentions } from "../services/mentionService.js";
-import { fetchNewsMentions } from "../services/newsService.js";
 import Brand from "../models/Brand.js";
 import Mention from "../models/Mention.js";
-import User from "../models/User.js";
+import Alert from "../models/Alert.js";
 
-// Add a brand
+// Add brand
 export const addBrand = async (req, res) => {
   try {
-    const { name, userId } = req.body;
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ message: "Brand name required" });
 
-    if (!name || !userId) {
-      return res.status(400).json({ message: "Brand name and userId are required" });
-    }
-
-    // ✅ Verify user exists
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    // 1️⃣ Save brand to MongoDB
-    const brand = await Brand.create({
-      name,
-      user: user._id, // link brand to user
-    });
-
-    // 2️⃣ Fetch mentions from Reddit & News
-    const redditMentions = await fetchRedditMentions(name);
-    const newsMentions = await fetchNewsMentions(name);
-    const allMentions = [...redditMentions, ...newsMentions];
-
-    // 3️⃣ Save mentions to MongoDB
-    const savedMentions = [];
-    for (let mention of allMentions) {
-      const newMention = await Mention.create({
-        brand: brand._id,
-        source: mention.source,
-        text: mention.text,
-        sentiment: mention.sentiment,
-        link: mention.link,
-      });
-      savedMentions.push(newMention);
-    }
-
-    res.status(201).json({ message: "Brand added", brand, mentions: savedMentions });
+    const brand = await Brand.create({ name, user: req.user._id });
+    res.status(201).json({ message: "Brand added", brand });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message });
   }
 };
 
-// Get all mentions for a brand
+// Get brands
+export const getBrands = async (req, res) => {
+  try {
+    const brands = await Brand.find({ user: req.user._id });
+    res.status(200).json({ brands });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get mentions
 export const getMentions = async (req, res) => {
   try {
-    const { brandId } = req.params;
-
-    // ✅ Check brand exists
-    const brand = await Brand.findById(brandId);
-    if (!brand) return res.status(404).json({ message: "Brand not found" });
-
-    const mentions = await Mention.find({ brand: brandId });
-
-    res.status(200).json({ brandId, mentions });
+    const mentions = await Mention.find({ brand: req.params.brandId }).sort({ createdAt: -1 });
+    res.status(200).json({ mentions });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get alerts
+export const getAlerts = async (req, res) => {
+  try {
+    const alerts = await Alert.find({ brand: req.params.brandId }).sort({ createdAt: -1 });
+    res.status(200).json({ alerts });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };

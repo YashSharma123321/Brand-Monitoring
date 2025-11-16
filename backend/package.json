@@ -18,7 +18,10 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "ml-kmeans": "^7.0.0",
     "mongoose": "^8.19.4",
+    "natural": "^8.1.0",
+    "node-cron": "^4.2.1",
     "nodemon": "^3.1.11",
     "sentiment": "^5.0.2"
   }
